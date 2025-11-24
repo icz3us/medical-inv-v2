@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_KEY;
@@ -59,15 +59,15 @@ export default function PharmacistNurseDashboard() {
   const [isGeneratingPatterns, setIsGeneratingPatterns] = useState(false)
 
   // Load data from database
+  const loadData = useCallback(async () => {
+    await Promise.all([loadItems(), loadMyRequests()])
+  }, []);
+
   useEffect(() => {
     loadData()
   }, [loadData])
 
-  const loadData = async () => {
-    await Promise.all([loadItems(), loadMyRequests()])
-  }
-
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     const { data, error } = await inventoryService.getItems()
     if (error) {
       console.error('Error loading items:', error)
@@ -75,9 +75,9 @@ export default function PharmacistNurseDashboard() {
     } else {
       setItems(data || [])
     }
-  }
+  }, [inventoryService, setItems])
 
-  const loadMyRequests = async () => {
+  const loadMyRequests = useCallback(async () => {
     // Get current user ID from session
     const userData = sessionStorage.getItem('user')
     const currentUser = userData ? JSON.parse(userData) : null
@@ -117,9 +117,9 @@ export default function PharmacistNurseDashboard() {
       const userRequests = processedRequests.filter(req => req.requester_id === currentUser.id)
       setMyRequests(userRequests)
     }
-  }
+  }, [requestService, setMyRequests])
 
-  const handleRequestItem = (item) => {
+  const handleRequestItem = useCallback((item) => {
     setSelectedItem(item)
     setRequestForm({
       quantity: '',
@@ -127,9 +127,9 @@ export default function PharmacistNurseDashboard() {
       reason: ''
     })
     setIsRequestDialogOpen(true)
-  }
+  }, [setSelectedItem, setRequestForm, setIsRequestDialogOpen])
 
-  const handleSubmitRequest = async () => {
+  const handleSubmitRequest = useCallback(async () => {
     if (!requestForm.quantity || !requestForm.department || !requestForm.reason) return
 
     // Get current user ID from session
@@ -186,7 +186,7 @@ export default function PharmacistNurseDashboard() {
       console.error('Error submitting request:', error)
       alert('Failed to submit request. Please try again.')
     }
-  }
+  }, [requestForm, selectedItem, myRequests, requestService, setMyRequests, setIsRequestDialogOpen, setSelectedItem, setRequestForm])
 
   const getCategoryColor = (category) => {
     switch (category) {
@@ -231,7 +231,7 @@ export default function PharmacistNurseDashboard() {
   const approvedRequests = myRequests.filter(req => req.status === 'approved').length
 
   // AI-powered function to recommend supplies based on medical condition
-  const getRecommendationsForCondition = async (condition) => {
+  const getRecommendationsForCondition = useCallback(async (condition) => {
     if (!condition.trim()) {
       console.log('No condition provided');
       return [];
@@ -277,10 +277,10 @@ export default function PharmacistNurseDashboard() {
     } finally {
       setIsGeneratingRecommendations(false);
     }
-  };
+  }, [ai, setIsGeneratingRecommendations]);
 
   // AI-powered function to predict supplies for procedures
-  const getRecommendationsForProcedure = async (procedure) => {
+  const getRecommendationsForProcedure = useCallback(async (procedure) => {
     if (!procedure.trim()) {
       console.log('No procedure provided');
       return [];
@@ -326,10 +326,10 @@ export default function PharmacistNurseDashboard() {
     } finally {
       setIsGeneratingRecommendations(false);
     }
-  };
+  }, [ai, setIsGeneratingRecommendations]);
 
   // AI-powered function to analyze usage patterns
-  const analyzeUsagePatterns = async (itemsList) => {
+  const analyzeUsagePatterns = useCallback(async (itemsList) => {
     if (!itemsList || itemsList.length === 0 || !ai) return [];
     
     setIsGeneratingPatterns(true);
@@ -373,10 +373,10 @@ export default function PharmacistNurseDashboard() {
     } finally {
       setIsGeneratingPatterns(false);
     }
-  };
+  }, [ai, setIsGeneratingPatterns]);
 
   // Handle condition-based recommendations
-  const handleConditionRecommendations = async () => {
+  const handleConditionRecommendations = useCallback(async () => {
     console.log('Handle condition recommendations called with:', medicalCondition);
     if (!medicalCondition.trim()) {
       alert('Please enter a medical condition');
@@ -394,10 +394,10 @@ export default function PharmacistNurseDashboard() {
     );
     console.log('Matching items:', matchingItems);
     setRecommendedItems(matchingItems);
-  };
+  }, [medicalCondition, items, getRecommendationsForCondition]);
 
   // Handle procedure-based recommendations
-  const handleProcedureRecommendations = async () => {
+  const handleProcedureRecommendations = useCallback(async () => {
     console.log('Handle procedure recommendations called with:', procedureType);
     if (!procedureType.trim()) {
       alert('Please enter a procedure type');
@@ -415,7 +415,7 @@ export default function PharmacistNurseDashboard() {
     );
     console.log('Matching items:', matchingItems);
     setRecommendedItems(matchingItems);
-  };
+  }, [procedureType, items, getRecommendationsForProcedure]);
 
   // Analyze usage patterns when items load
   useEffect(() => {
