@@ -61,7 +61,7 @@ export default function PharmacistNurseDashboard() {
   // Load data from database
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const loadData = async () => {
     await Promise.all([loadItems(), loadMyRequests()])
